@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id             String         @id @default(cuid())
+  name           String
+  email          String         @unique
+  passwordHash   String
+  role           Role           @default(USER)
+  status         ApprovalStatus @default(PENDING)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  approvedBy     String?        // Admin user ID who approved
+  resumes        Resume[]
+}
+
+model Resume {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  originalFileUrl String    // Supabase storage URL of original PDF
+  extractedText   String    // Raw text from pdf-parse
+  atsScore        Float?    // Score before optimization (0–10)
+  optimizedText   String?   // Rewritten resume text (JSON structure)
+  optimizedScore  Float?    // Score after optimization
+  latexSource     String?   // LaTeX source for optimized resume
+  optimizedPdfUrl String?   // Supabase storage URL of optimized PDF
+  resumeName      String?   // User-defined label for this resume
+  createdAt       DateTime  @default(now())
+  tailoredResumes TailoredResume[]
+}
+
+model TailoredResume {
+  id              String   @id @default(cuid())
+  resumeId        String
+  resume          Resume   @relation(fields: [resumeId], references: [id])
+  jobDescription  String   // Pasted or uploaded JD text
+  companyName     String?
+  jobTitle        String?
+  tailoredText    String?  // Rewritten resume JSON
+  tailoredScore   Float?
+  resumeName      String?  // User-defined label for this tailored version
+  latexSource     String?
+  pdfUrl          String?
+  createdAt       DateTime @default(now())
+}
