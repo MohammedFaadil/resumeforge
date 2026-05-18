@@ -76,7 +76,6 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (err: any) {
           console.error("Google signIn callback error:", err);
-          require("fs").writeFileSync("auth-error.log", err?.toString() + "\n" + err?.stack);
           return false;
         }
       }
