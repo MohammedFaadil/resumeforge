@@ -107,7 +107,7 @@ export default async function HomePage() {
                 Sign In
               </Link>
               <Link
-                href="/signup"
+                href="/login"
                 className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 active:scale-95"
               >
                 Get Started Free
@@ -176,7 +176,7 @@ export default async function HomePage() {
               ) : (
                 <>
                   <Link
-                    href="/signup"
+                    href="/login"
                     className="group inline-flex items-center gap-2 px-8 py-4 text-base font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-0.5 active:scale-95"
                   >
                     Start Optimizing Free
@@ -297,7 +297,7 @@ export default async function HomePage() {
                   Join professionals who've used ResumeForge to get past ATS filters and into the hands of real hiring managers.
                 </p>
                 <Link
-                  href="/signup"
+                  href="/login"
                   className="group inline-flex items-center gap-2 px-8 py-4 text-base font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-0.5"
                 >
                   Get Your 9.5+ ATS Score
@@ -323,7 +323,7 @@ export default async function HomePage() {
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <Link href="/login" className="hover:text-foreground transition-colors">Sign In</Link>
-            <Link href="/signup" className="hover:text-foreground transition-colors">Sign Up</Link>
+            <Link href="/login" className="hover:text-foreground transition-colors">Get Started</Link>
           </div>
         </div>
       </footer>

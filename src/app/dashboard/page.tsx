@@ -40,6 +40,18 @@ const features = [
     tag: "Step 3",
     tagColor: "bg-amber-500/15 text-amber-400",
   },
+  {
+    href: "/dashboard/history",
+    icon: Sparkles,
+    gradient: "from-emerald-600/20 to-emerald-800/10",
+    border: "border-emerald-500/20",
+    iconColor: "text-emerald-400",
+    iconBg: "bg-emerald-500/10",
+    title: "Save as History",
+    desc: "Keep track of all your optimized resumes safely stored in your history, so you can easily access or download them anytime.",
+    tag: "Step 4",
+    tagColor: "bg-emerald-500/15 text-emerald-400",
+  },
 ];
 
 export default async function DashboardPage() {

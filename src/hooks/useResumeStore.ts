@@ -8,6 +8,11 @@ interface ResumeState {
   scoreBreakdown: any | null;
   optimizedText: any | null;
   optimizedScore: number | null;
+  // Tailoring state
+  jobTitle: string;
+  companyName: string;
+  jobDescription: string;
+  tailorResult: any | null;
   setResumeData: (data: Partial<ResumeState>) => void;
   reset: () => void;
 }
@@ -20,6 +25,10 @@ export const useResumeStore = create<ResumeState>((set) => ({
   scoreBreakdown: null,
   optimizedText: null,
   optimizedScore: null,
+  jobTitle: "",
+  companyName: "",
+  jobDescription: "",
+  tailorResult: null,
   setResumeData: (data) => set((state) => ({ ...state, ...data })),
   reset: () => set({
     resumeId: null,
@@ -29,5 +38,9 @@ export const useResumeStore = create<ResumeState>((set) => ({
     scoreBreakdown: null,
     optimizedText: null,
     optimizedScore: null,
+    jobTitle: "",
+    companyName: "",
+    jobDescription: "",
+    tailorResult: null,
   }),
 }));

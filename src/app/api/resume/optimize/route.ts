@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { groq, groqCall } from '@/lib/groq';
 import prisma from '@/lib/prisma';
 import { ATS_OPTIMIZE_PROMPT } from '@/prompts/ats-optimize';
-import { ATS_SCORE_PROMPT } from '@/prompts/ats-score';
+import { calculateATSScore } from '@/lib/ats-scorer';
 
 /** Strip any residual [SUGGESTED: ...] or [X%] or [NUMBER] placeholders from a string */
 function cleanPlaceholders(text: string): string {
@@ -53,7 +53,7 @@ function serializeResumeToText(data: any): string {
     `${data.contact?.email || ''} | ${data.contact?.phone || ''} | ${data.contact?.location || ''}`,
     data.contact?.linkedin ? `LinkedIn: ${data.contact.linkedin}` : '',
     '',
-    'SUMMARY',
+    'PROFESSIONAL SUMMARY',
     data.summary || '',
     '',
     'EXPERIENCE',
@@ -68,9 +68,9 @@ function serializeResumeToText(data: any): string {
     ),
     '',
     'SKILLS',
-    `Technical: ${(data.skills?.technical || []).join(', ')}`,
-    `Tools: ${(data.skills?.tools || []).join(', ')}`,
-    `Soft Skills: ${(data.skills?.soft || []).join(', ')}`,
+    `Technical Skills: ${(data.skills?.technical || []).join(', ')}`,
+    `Tools & Platforms: ${(data.skills?.tools || []).join(', ')}`,
+    `Professional Skills: ${(data.skills?.soft || []).join(', ')}`,
   ].filter(Boolean).join('\n');
 }
 
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
         { role: 'system', content: ATS_OPTIMIZE_PROMPT },
         {
           role: 'user',
-          content: `Optimize this resume for a MINIMUM ATS score of 9.5. 
+          content: `Optimize this resume for a high ATS score. 
         
 CRITICAL REQUIREMENTS:
 - Every bullet MUST start with a strong action verb
@@ -129,73 +129,56 @@ ${resume.extractedText.substring(0, 8000)}`
     let optimizedData = JSON.parse(jsonMatch[0]);
     optimizedData = deepClean(optimizedData);
 
-    // ── Step 2: Real ATS verification score ──────────────────────────────────
+    // ── Step 2: Deterministic ATS verification score ────────────────────────
     const resumeText = serializeResumeToText(optimizedData);
+    let deterministicResult = calculateATSScore(resumeText);
+    let verifiedScore = deterministicResult.overall_score;
 
-    const scoreResponse = await groqCall({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: ATS_SCORE_PROMPT },
-        {
-          role: 'user',
-          content: `Score this optimized resume for ATS compatibility:\n\n${resumeText}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.1,
-    });
-
-    const scoreContent = scoreResponse.choices[0]?.message?.content || '{}';
-    const scoreMatch = scoreContent.match(/\{[\s\S]*\}/);
-    let verifiedScoreData: any = null;
-    let verifiedScore = 9.5;
-
-    if (scoreMatch) {
-      verifiedScoreData = JSON.parse(scoreMatch[0]);
-      verifiedScore = verifiedScoreData.overall_score ?? verifiedScore;
-    }
-
-    // ── Step 3: Correction pass if score < 9.5 ───────────────────────────────
-    if (verifiedScore < 9.5) {
-      const issues = verifiedScoreData?.issues || [];
-      const weakDimensions = Object.entries(verifiedScoreData?.breakdown || {})
-        .filter(([, v]: any) => (v?.score ?? 10) < 9.5)
-        .map(([k, v]: any) => `${k}: ${v?.score} — ${v?.comment || 'needs improvement'}`)
+    // ── Step 3: Correction pass if score < 9.0 ───────────────────────────
+    if (verifiedScore < 9.0) {
+      const weakDimensions = Object.entries(deterministicResult.breakdown)
+        .filter(([, v]) => v.score < 9.0)
+        .map(([k, v]) => `${k}: ${v.score}/10 — ${v.comment}`)
         .join('\n');
 
-      const correctionResponse = await groqCall({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: ATS_OPTIMIZE_PROMPT },
-          {
-            role: 'user',
-            content: `The optimized resume scored ${verifiedScore}/10 — below the required 9.5 target.
+      try {
+        const correctionResponse = await groqCall({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: ATS_OPTIMIZE_PROMPT },
+            {
+              role: 'user',
+              content: `The optimized resume scored ${verifiedScore}/10 — below the required 9.0 target.
 
 WEAK DIMENSIONS THAT NEED FIXING:
 ${weakDimensions || 'General keyword density and action verb usage need improvement'}
 
-SPECIFIC ISSUES TO FIX:
-${issues.slice(0, 5).join('\n') || 'Increase keyword density and ensure every bullet starts with a strong action verb'}
-
-Improve the resume to fix exactly these weaknesses and achieve a score above 9.5.
+Improve the resume further to fix these weaknesses and achieve a higher score.
 
 CURRENT OPTIMIZED RESUME (improve this, do NOT change any dates, companies, titles, or metrics):
 ${JSON.stringify(optimizedData, null, 2).substring(0, 10000)}
 
-Return ONLY valid JSON in the same format. Do not add any fabricated content.`,
-          },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-        max_tokens: 7000,
-      });
+Return ONLY valid JSON in the same format.`,
+            },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.2,
+          max_tokens: 7000,
+        });
 
-      const correctionContent = correctionResponse.choices[0]?.message?.content || '';
-      const correctionMatch = correctionContent.match(/\{[\s\S]*\}/);
-      if (correctionMatch) {
-        const corrected = JSON.parse(correctionMatch[0]);
-        optimizedData = deepClean(corrected);
-        verifiedScore = Math.max(verifiedScore, 9.5);
+        const correctionContent = correctionResponse.choices[0]?.message?.content || '';
+        const correctionMatch = correctionContent.match(/\{[\s\S]*\}/);
+        if (correctionMatch) {
+          const corrected = JSON.parse(correctionMatch[0]);
+          optimizedData = deepClean(corrected);
+
+          // Re-score with the SAME deterministic algorithm
+          const finalResumeText = serializeResumeToText(optimizedData);
+          deterministicResult = calculateATSScore(finalResumeText);
+          verifiedScore = deterministicResult.overall_score;
+        }
+      } catch (corrErr: any) {
+        console.warn('Correction pass failed:', corrErr?.message);
       }
     }
 

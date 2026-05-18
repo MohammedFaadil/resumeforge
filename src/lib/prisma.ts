@@ -5,7 +5,12 @@ import { PrismaPg } from '@prisma/adapter-pg'
 
 const prismaClientSingleton = () => {
   const connectionString = process.env.DATABASE_URL
-  const pool = new Pool({ connectionString })
+  console.log("PRISMA INIT. DATABASE_URL:", connectionString ? "DEFINED" : "UNDEFINED", connectionString?.substring(0, 15) + "...");
+  const pool = new Pool({ 
+    connectionString,
+    max: 2, // Prevent Supabase connection exhaustion in dev
+    ssl: { rejectUnauthorized: false } // Force SSL to prevent connection rejection
+  })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })
 }

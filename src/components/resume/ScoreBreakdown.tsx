@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 interface ScoreBreakdownProps {
-  breakdown: Record<string, number>;
+  breakdown: Record<string, any>;
   issues: string[];
   strengths: string[];
 }
@@ -20,15 +20,18 @@ export function ScoreBreakdown({ breakdown, issues, strengths }: ScoreBreakdownP
       <CardContent className="space-y-6">
         <div className="space-y-3">
           <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Metrics</h4>
-          {Object.entries(breakdown).map(([key, value]) => (
-            <div key={key} className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span>{formatKey(key)}</span>
-                <span className="font-medium">{value}/10</span>
+          {Object.entries(breakdown).map(([key, val]) => {
+            const scoreValue = typeof val === 'object' && val !== null ? (val as any).score : val;
+            return (
+              <div key={key} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>{formatKey(key)}</span>
+                  <span className="font-medium">{scoreValue}/10</span>
+                </div>
+                <Progress value={scoreValue * 10} className="h-2" />
               </div>
-              <Progress value={value * 10} className="h-2" />
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useResumeStore } from "@/hooks/useResumeStore";
 import { toast } from "sonner";
 import {
@@ -26,12 +26,24 @@ type CoverLetterResult = {
 
 export default function TailorPage() {
   const router = useRouter();
-  const { resumeId } = useResumeStore();
-  const [jobTitle, setJobTitle]         = useState("");
-  const [companyName, setCompanyName]   = useState("");
-  const [jobDescription, setJobDescription] = useState("");
+  const { 
+    resumeId, 
+    jobTitle, setResumeData, 
+    companyName, 
+    jobDescription, 
+    tailorResult 
+  } = useResumeStore();
+  
   const [phase, setPhase]               = useState<"form" | "loading" | "result">("form");
   const [result, setResult]             = useState<AnalysisResult | null>(null);
+
+  // Restore state from store if available
+  useEffect(() => {
+    if (tailorResult) {
+      setResult(tailorResult);
+      setPhase("result");
+    }
+  }, [tailorResult]);
 
   // Cover letter state
   const [clPhase, setClPhase]           = useState<"idle" | "loading" | "done">("idle");
@@ -58,12 +70,13 @@ export default function TailorPage() {
       });
       const data = await res.json();
       if (res.status === 429) {
-        // Rate limit hit — show clear message with retry info
         toast.error(data.error || "Daily AI token limit reached. Please try again later.", { duration: 8000 });
         setPhase("form");
         return;
       }
       if (!res.ok) throw new Error(data.error);
+      
+      setResumeData({ tailorResult: data });
       setResult(data);
       setPhase("result");
       setCoverLetter(null);
@@ -112,6 +125,29 @@ export default function TailorPage() {
     }
   };
 
+  const [clDownloading, setClDownloading] = useState(false);
+
+  const handleDownloadCoverLetterPdf = async () => {
+    const text = editedLetter || coverLetter?.coverLetter || '';
+    if (!text) { toast.error("No cover letter to download"); return; }
+    setClDownloading(true);
+    try {
+      const res = await fetch("/api/resume/cover-letter-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverLetterText: text, candidateName: "" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "PDF generation failed");
+      window.open(data.pdfUrl, "_blank");
+      toast.success("Cover letter PDF ready!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate cover letter PDF");
+    } finally {
+      setClDownloading(false);
+    }
+  };
+
   const handleSaveTailoredName = async () => {
     if (!result?.tailoredResumeId || !tailoredName.trim()) { toast.error("Enter a name first"); return; }
     setSavingName(true);
@@ -148,7 +184,7 @@ export default function TailorPage() {
 
       {/* No resume */}
       {noResume && (
-        <div className="glass-card rounded-2xl p-8 border border-amber-500/20 text-center">
+        <div className="glass-card rounded-2xl p-10 sm:p-16 border border-amber-500/20 text-center flex flex-col items-center justify-center min-h-[300px]">
           <AlertTriangle size={40} className="text-amber-400 mx-auto mb-4" />
           <h3 className="text-lg font-bold font-heading mb-2">Upload a Resume First</h3>
           <p className="text-muted-foreground text-sm mb-5">
@@ -176,7 +212,7 @@ export default function TailorPage() {
                   </label>
                   <input
                     type="text" placeholder="Software Engineer"
-                    value={jobTitle} onChange={e => setJobTitle(e.target.value)}
+                    value={jobTitle} onChange={e => setResumeData({ jobTitle: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl bg-input border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all"
                   />
                 </div>
@@ -186,7 +222,7 @@ export default function TailorPage() {
                   </label>
                   <input
                     type="text" placeholder="Google"
-                    value={companyName} onChange={e => setCompanyName(e.target.value)}
+                    value={companyName} onChange={e => setResumeData({ companyName: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl bg-input border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all"
                   />
                 </div>
@@ -199,7 +235,7 @@ export default function TailorPage() {
                   rows={12}
                   placeholder="Paste the full job description here including responsibilities, requirements, and qualifications..."
                   value={jobDescription}
-                  onChange={e => setJobDescription(e.target.value)}
+                  onChange={e => setResumeData({ jobDescription: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl bg-input border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -290,7 +326,7 @@ export default function TailorPage() {
                   </a>
                 )}
                 <button
-                  onClick={() => { setPhase("form"); setCoverLetter(null); setClPhase("idle"); }}
+                  onClick={() => { setPhase("form"); setResumeData({ tailorResult: null }); setCoverLetter(null); setClPhase("idle"); }}
                   className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-border/50 text-sm font-medium hover:bg-muted/20 transition-all"
                 >
                   <RotateCcw size={15} /> Tailor Again
@@ -519,6 +555,14 @@ export default function TailorPage() {
                     >
                       {copied ? <Check size={15} /> : <Copy size={15} />}
                       {copied ? "Copied to Clipboard!" : "Copy Cover Letter"}
+                    </button>
+                    <button
+                      onClick={handleDownloadCoverLetterPdf}
+                      disabled={clDownloading}
+                      className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-all disabled:opacity-50 hover:shadow-lg hover:shadow-emerald-500/20"
+                    >
+                      {clDownloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                      Download PDF
                     </button>
                     <button
                       onClick={() => { setClPhase("idle"); setCoverLetter(null); setEditedLetter(""); }}

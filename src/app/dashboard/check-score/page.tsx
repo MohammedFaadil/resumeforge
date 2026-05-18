@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
 import { useResumeStore } from "@/hooks/useResumeStore";
@@ -80,6 +80,14 @@ export default function CheckScorePage() {
   const [phase, setPhase] = useState<"upload" | "loading" | "result">("upload");
   const [loadingText, setLoadingText] = useState("Uploading PDF...");
   const [scoreData, setScoreData] = useState<ScoreData | null>(null);
+
+  // Restore state from store if available
+  useEffect(() => {
+    if (atsScore !== null && scoreBreakdown) {
+      setScoreData(scoreBreakdown);
+      setPhase("result");
+    }
+  }, [atsScore, scoreBreakdown]);
 
   const processFile = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
@@ -196,7 +204,7 @@ export default function CheckScorePage() {
                   onClick={() => router.push("/dashboard/optimize")}
                   className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20"
                 >
-                  <Zap size={15} /> Optimize to 9.5+
+                  <Zap size={15} /> Optimize Score
                 </button>
               )}
               {scoreData.overall_score >= 9.5 && (

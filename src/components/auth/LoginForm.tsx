@@ -77,8 +77,8 @@ export default function LoginForm() {
           </Button>
           <div className="text-sm text-center text-muted-foreground">
             Don't have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline">
-              Sign up
+            <Link href="/login" className="text-primary hover:underline">
+              Sign in with Google
             </Link>
           </div>
         </CardFooter>

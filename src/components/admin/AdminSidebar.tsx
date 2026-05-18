@@ -8,7 +8,7 @@ import {
   ArrowLeft, LogOut, ShieldCheck, ChevronRight
 } from "lucide-react";
 
-type Props = { user: { name: string; email: string; role: string } };
+type Props = { user: { name: string; email: string; role: string }, onClose?: () => void };
 
 const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -18,13 +18,13 @@ const navItems = [
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
-export function AdminSidebar({ user }: Props) {
+export function AdminSidebar({ user, onClose }: Props) {
   const pathname = usePathname();
   const initials = user.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
   const isActive = (href: string, exact?: boolean) => exact ? pathname === href : pathname.startsWith(href);
 
   return (
-    <aside className="w-64 h-screen flex flex-col border-r border-border/50 bg-sidebar/80 backdrop-blur-xl shrink-0">
+    <aside className="w-64 h-[100dvh] flex flex-col border-r border-border/50 bg-sidebar/80 backdrop-blur-xl shrink-0">
       {/* Header */}
       <div className="p-5 border-b border-border/30">
         <div className="flex items-center gap-3">
@@ -49,6 +49,7 @@ export function AdminSidebar({ user }: Props) {
             <Link
               key={href}
               href={href}
+              onClick={onClose}
               className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 active
                   ? "bg-violet-600/12 text-violet-400 border-l-2 border-violet-600 pl-[calc(0.75rem-2px)]"

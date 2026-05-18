@@ -17,7 +17,7 @@ export async function GET() {
     checks['USER_COUNT'] = String(userCount);
 
     const admin = await prisma.user.findFirst({
-      where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } },
+      where: { email: 'resumeforgeweb@gmail.com' },
       select: { email: true, role: true, status: true },
     });
     checks['ADMIN_EXISTS'] = admin ? `YES — ${admin.email} (${admin.role}, ${admin.status})` : 'NO ADMIN FOUND';

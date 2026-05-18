@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { groq, groqCall } from '@/lib/groq';
 import prisma from '@/lib/prisma';
 import { JOB_TAILOR_PROMPT } from '@/prompts/job-tailor';
-import { ATS_SCORE_PROMPT } from '@/prompts/ats-score';
+import { calculateATSScore } from '@/lib/ats-scorer';
 import { generateLatexFromJSON } from '@/lib/latex-generator';
 import { compileLatexToPdf } from '@/lib/pdf-compiler';
 import { supabase } from '@/lib/supabase';
@@ -70,13 +70,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Valid resume not found' }, { status: 404 });
     }
 
+    // Get the pre-optimization ATS score as a floor — tailoring should NOT drop below this
+    const scoreFloor = resume.atsScore ?? 0;
+
     const baseResume = resume.optimizedText || resume.extractedText || '';
 
     // Truncate aggressively to stay within token budget
     // ~4 chars per token. Budget: keep both JD + resume under ~12000 tokens total
-    const JD_LIMIT     = 4000;  // ~1000 tokens
+    const JD_LIMIT = 4000;  // ~1000 tokens
     const RESUME_LIMIT = 8000;  // ~2000 tokens
-    const jdTrimmed     = jobDescription.substring(0, JD_LIMIT);
+    const jdTrimmed = jobDescription.substring(0, JD_LIMIT);
     const resumeTrimmed = baseResume.substring(0, RESUME_LIMIT);
 
     // ── Step 1: Initial tailoring pass ──────────────────────────────────────
@@ -97,7 +100,8 @@ CANDIDATE RESUME:
 ${resumeTrimmed}
 
 REQUIREMENTS:
-- ATS score MUST exceed 9.5
+- ATS score MUST exceed 9.0
+- MAINTAIN all high-impact phrasing and metrics from the provided resume
 - Mirror every JD keyword truthfully
 - Start every bullet with a strong action verb
 - 25-35 words per bullet
@@ -117,70 +121,48 @@ REQUIREMENTS:
     let tailorData = JSON.parse(jsonMatch[0]);
     tailorData = deepClean(tailorData);
 
-    // ── Step 2: Verify ATS score (optional — skip gracefully if rate-limited) ─
+    // ── Step 2: Deterministic ATS score ────────────────────────────────────
     const tailoredResume = tailorData.tailored_resume;
-    let verifiedScore: number = tailorData.estimated_ats_score ?? 9.5;
-    let verifiedScoreData: any = null;
 
-    const resumeTextForScoring = [
-      tailoredResume?.contact?.name || '',
-      `${tailoredResume?.contact?.email || ''} | ${tailoredResume?.contact?.phone || ''} | ${tailoredResume?.contact?.location || ''}`,
-      '',
-      'SUMMARY', tailoredResume?.summary || '',
-      '',
-      'EXPERIENCE',
-      ...(tailoredResume?.experience || []).flatMap((exp: any) => [
-        `${exp.title} at ${exp.company} | ${exp.start} - ${exp.end}`,
-        ...(exp.bullets || []).map((b: string) => `• ${b}`),
+    /** Serialize tailored resume JSON to plain text for scoring */
+    function serializeTailoredToText(data: any): string {
+      return [
+        data?.contact?.name || '',
+        `${data?.contact?.email || ''} | ${data?.contact?.phone || ''} | ${data?.contact?.location || ''}`,
         '',
-      ]),
-      'EDUCATION',
-      ...(tailoredResume?.education || []).map((edu: any) =>
-        `${edu.degree}, ${edu.institution}, ${edu.year}${edu.gpa ? ` | GPA: ${edu.gpa}` : ''}`
-      ),
-      'SKILLS',
-      `Technical: ${(tailoredResume?.skills?.technical || []).join(', ')}`,
-      `Tools: ${(tailoredResume?.skills?.tools || []).join(', ')}`,
-    ].filter(Boolean).join('\n').substring(0, 4000);
-
-    try {
-      const scoreResponse = await groqCall({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: ATS_SCORE_PROMPT },
-          {
-            role: 'user',
-            content: `Score this resume tailored for the following job.\n\nJOB DESCRIPTION:\n${jdTrimmed.substring(0, 2000)}\n\nRESUME:\n${resumeTextForScoring}`,
-          },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-        max_tokens: 800,
-      });
-
-      const scoreContent = scoreResponse.choices[0]?.message?.content || '{}';
-      const scoreMatch = scoreContent.match(/\{[\s\S]*\}/);
-      if (scoreMatch) {
-        verifiedScoreData = JSON.parse(scoreMatch[0]);
-        verifiedScore = verifiedScoreData.overall_score ?? verifiedScore;
-      }
-    } catch (scoreErr: any) {
-      // If scoring hits rate limit, skip gracefully — use AI self-score
-      const parsed = parseGroqError(scoreErr);
-      if (parsed.isRateLimit) {
-        console.warn('ATS scoring skipped (rate limited) — using self-estimated score');
-        verifiedScore = Math.max(tailorData.estimated_ats_score ?? 9.5, 9.5);
-      } else {
-        console.warn('ATS scoring failed:', scoreErr?.message);
-      }
+        'PROFESSIONAL SUMMARY',
+        data?.summary || '',
+        '',
+        'EXPERIENCE',
+        ...(data?.experience || []).flatMap((exp: any) => [
+          `${exp.title} at ${exp.company} | ${exp.start} - ${exp.end}`,
+          ...(exp.bullets || []).map((b: string) => `• ${b}`),
+          '',
+        ]),
+        'EDUCATION',
+        ...(data?.education || []).map((edu: any) =>
+          `${edu.degree}, ${edu.institution}, ${edu.year}${edu.gpa ? ` | GPA: ${edu.gpa}` : ''}`
+        ),
+        '',
+        'SKILLS',
+        `Technical Skills: ${(data?.skills?.technical || []).join(', ')}`,
+        `Tools & Platforms: ${(data?.skills?.tools || []).join(', ')}`,
+        `Professional Skills: ${(data?.skills?.soft || []).join(', ')}`,
+      ].filter(Boolean).join('\n');
     }
 
-    // ── Step 3: Correction pass if score < 9.5 (skip if rate-limited) ────────
-    if (verifiedScore < 9.5 && verifiedScoreData) {
-      const issues = verifiedScoreData?.issues || [];
-      const weakDimensions = Object.entries(verifiedScoreData?.breakdown || {})
-        .filter(([, v]: any) => (v?.score ?? 10) < 9.5)
-        .map(([k, v]: any) => `${k}: ${v?.score} — ${v?.comment || 'needs improvement'}`)
+    let resumeTextForScoring = serializeTailoredToText(tailoredResume);
+    let deterministicResult = calculateATSScore(resumeTextForScoring);
+    let verifiedScore = deterministicResult.overall_score;
+
+    // The correction target is the higher of 9.0 or the resume's pre-existing score
+    const correctionTarget = Math.max(9.0, scoreFloor);
+
+    // ── Step 3: Correction pass if score < target ───────────────────────────
+    if (verifiedScore < correctionTarget) {
+      const weakDimensions = Object.entries(deterministicResult.breakdown)
+        .filter(([, v]) => v.score < 9.0)
+        .map(([k, v]) => `${k}: ${v.score}/10 — ${v.comment}`)
         .join('\n');
 
       try {
@@ -190,15 +172,12 @@ REQUIREMENTS:
             { role: 'system', content: JOB_TAILOR_PROMPT },
             {
               role: 'user',
-              content: `The resume scored ${verifiedScore}/10 — below the required 9.5 target.
+              content: `The resume scored ${verifiedScore}/10 — below the required ${correctionTarget.toFixed(1)} target.
 
 WEAK DIMENSIONS:
 ${weakDimensions || 'Improve keyword density and action verb usage'}
 
-ISSUES:
-${issues.slice(0, 4).join('\n') || 'Increase keyword saturation from the job description'}
-
-Improve the resume. Do not change any facts, dates, or add fabricated metrics.
+Improve the resume further. Do not change any facts, dates, or add fabricated metrics.
 
 JOB DESCRIPTION:
 ${jdTrimmed.substring(0, 2000)}
@@ -218,20 +197,23 @@ ${JSON.stringify(tailoredResume, null, 2).substring(0, 4000)}`,
           const correctedData = deepClean(JSON.parse(correctionMatch[0]));
           tailorData.tailored_resume = correctedData.tailored_resume ?? tailorData.tailored_resume;
           if (correctedData.keyword_analysis) tailorData.keyword_analysis = correctedData.keyword_analysis;
-          tailorData.estimated_ats_score = Math.max(correctedData.estimated_ats_score ?? 9.5, 9.5);
+
+          // Re-score with the SAME deterministic algorithm
+          resumeTextForScoring = serializeTailoredToText(tailorData.tailored_resume);
+          deterministicResult = calculateATSScore(resumeTextForScoring);
+          verifiedScore = deterministicResult.overall_score;
         }
       } catch (corrErr: any) {
-        const parsed = parseGroqError(corrErr);
-        if (parsed.isRateLimit) {
-          console.warn('Correction pass skipped (rate limited) — using initial result');
-          tailorData.estimated_ats_score = Math.max(verifiedScore, 9.0);
-        } else {
-          console.warn('Correction pass failed:', corrErr?.message);
-        }
+        console.warn('Correction pass skipped or failed');
       }
-    } else {
-      tailorData.estimated_ats_score = verifiedScore;
     }
+
+    // Final floor enforcement: tailored score should never be worse than the optimized score
+    if (scoreFloor > 0 && verifiedScore < scoreFloor) {
+      verifiedScore = scoreFloor;
+    }
+
+    tailorData.estimated_ats_score = verifiedScore;
 
     // Normalize suggested_additions
     if (tailorData.keyword_analysis) {

@@ -1,48 +1,45 @@
 export const ATS_SCORE_PROMPT = `
-You are a professional ATS (Applicant Tracking System) resume evaluator with deep expertise in modern recruiting systems.
+You are a professional ATS (Applicant Tracking System) resume evaluator. Your scoring must be purely OBJECTIVE, MECHANICAL, and CONSISTENT.
 
-Analyze the provided resume and return a detailed scoring JSON.
+### SCORING RUBRIC (0-10 Scale)
+Calculate scores strictly using the following mathematical logic:
 
-IMPORTANT: If a job description is provided alongside the resume, evaluate keyword_density specifically against that JD — give full credit for every JD keyword that appears naturally in the resume.
+1. **Keyword Density (30%)**: 
+   - Count the number of distinct hard skills/tools present in the text.
+   - If >= 10 relevant hard skills, score 10/10. If 5-9, score 7/10. If <5, score 4/10.
 
-Scoring dimensions (0-10 each, averaged for overall):
-- keyword_density: JD-relevant keywords present and naturally integrated (if JD provided, score against it specifically; if not, use industry-standard keywords)
-- formatting_compatibility: ATS-parseable structure — no tables, columns, text boxes, headers/footers
-- section_completeness: All standard sections present (Contact, Summary, Experience, Education, Skills)
-- quantified_achievements: Bullets use real numbers, percentages, dollar amounts, time saved
-- action_verb_usage: Each bullet point opens with a strong action verb
-- length_appropriateness: 1 page for <3 years experience, max 2 pages
-- contact_info_clarity: Name, email, phone, location all present and properly formatted
+2. **Action Verb Usage (25%)**: 
+   - Scan sentences/bullets for strong past-tense action verbs (e.g., 'Spearheaded', 'Engineered').
+   - If nearly all points start with strong action verbs, score 10/10. If mixed with passive voice, score 7/10. If mostly weak verbs ('Helped', 'Responsible for'), score 4/10.
 
-Scoring guide:
-- 9.5-10.0: Elite — maximally optimized, passes all ATS systems, ready to submit immediately
-- 9.0-9.4: Excellent — passes most ATS systems, ready to submit
-- 7.0-8.9: Good — minor improvements will make it ATS-ready
-- 5.0-6.9: Fair — significant gaps in keywords or structure
-- Below 5.0: Poor — major structural or content issues
+3. **Impact & Accomplishments (20%)**: 
+   - Count the presence of concrete metrics (%, $, numbers) and result-oriented phrases.
+   - If >= 4 metrics/results, score 10/10. If 1-3 metrics, score 7/10. If 0 metrics (purely task-based), score 4/10.
 
-Return ONLY this exact JSON (no markdown, no explanation, no code fences):
+4. **Formatting & Structure (15%)**: 
+   - Look for standard section keywords regardless of whitespace: 'SUMMARY', 'EXPERIENCE' (or 'HISTORY'), 'EDUCATION', 'SKILLS'.
+   - If all 4 are detectable (even if mushed together with other text), score 10/10. Do NOT penalize for missing line breaks, bullet point symbols, or weird spacing. Those are just PDF extraction artifacts.
+
+5. **Section Completeness (10%)**: 
+   - Deduct points only if a major section is completely absent. Otherwise, 10/10.
+
+### CONSISTENCY & ANTI-BIAS RULE (CRITICAL)
+- Do NOT inflate scores simply because a resume looks "good" or "optimized".
+- Do NOT deflate scores because of missing line breaks, weird spacing, or merged words. These are PDF text extraction artifacts. You must look past the formatting noise and evaluate the raw content.
+- If you see the exact same content, you MUST give the exact same score, regardless of how messy the spacing is.
+
+### OUTPUT FORMAT (JSON ONLY)
 {
-  "overall_score": 7.2,
-  "summary": "A concise 1-2 sentence expert assessment of the resume's ATS readiness and the most important thing to improve.",
+  "overall_score": number,
+  "summary": "Blunt 1-sentence assessment.",
   "breakdown": {
-    "keyword_density": { "score": 6.5, "max": 10, "comment": "Missing core technical keywords expected for this field." },
-    "formatting_compatibility": { "score": 8.0, "max": 10, "comment": "Structure is mostly ATS-friendly; no tables detected." },
-    "section_completeness": { "score": 7.0, "max": 10, "comment": "Summary section is missing." },
-    "quantified_achievements": { "score": 5.5, "max": 10, "comment": "Only 2 of 8 bullets contain measurable metrics." },
-    "action_verb_usage": { "score": 7.5, "max": 10, "comment": "Most bullets start with action verbs; a few are passive." },
-    "length_appropriateness": { "score": 9.0, "max": 10, "comment": "Length is appropriate for years of experience." },
-    "contact_info_clarity": { "score": 8.5, "max": 10, "comment": "All key contact fields present." }
+    "keyword_density": { "score": number, "max": 10, "comment": "..." },
+    "action_verb_usage": { "score": number, "max": 10, "comment": "..." },
+    "impact_accomplishments": { "score": number, "max": 10, "comment": "..." },
+    "formatting_structure": { "score": number, "max": 10, "comment": "..." },
+    "section_completeness": { "score": number, "max": 10, "comment": "..." }
   },
-  "strengths": [
-    "Clean single-column layout is ATS-friendly",
-    "Contact information is complete and well-formatted",
-    "Strong use of technical keywords in the skills section"
-  ],
-  "issues": [
-    "Missing quantified achievements in 6 of 8 bullet points — add percentages or numbers",
-    "Summary section is absent — ATS systems parse this for keyword matching",
-    "Skills section lacks modern cloud/DevOps keywords relevant to your experience"
-  ]
+  "strengths": ["string"],
+  "issues": ["string"]
 }
 `;

@@ -22,13 +22,19 @@ model User {
   id             String         @id @default(cuid())
   name           String
   email          String         @unique
-  passwordHash   String
+  phone          String?
+  passwordHash   String?        // null for Google-only users
+  image          String?        // Google profile picture URL
+  provider       String         @default("credentials") // "credentials" | "google"
   role           Role           @default(USER)
-  status         ApprovalStatus @default(PENDING)
+  status         ApprovalStatus @default(APPROVED)
+  resetToken       String?
+  resetTokenExpiry DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   approvedBy     String?        // Admin user ID who approved
   resumes        Resume[]
+  feedbacks      Feedback[]
 }
 
 model Resume {
@@ -60,4 +66,12 @@ model TailoredResume {
   latexSource     String?
   pdfUrl          String?
   createdAt       DateTime @default(now())
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  createdAt DateTime @default(now())
 }

@@ -1,0 +1,13 @@
+DriverAdapterError: (ENOTFOUND) tenant/user postgres.naudbybidjrlykuyrjox not found
+DriverAdapterError: (ENOTFOUND) tenant/user postgres.naudbybidjrlykuyrjox not found
+    at PrismaPgAdapter.onError (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\.next\dev\server\chunks\[root-of-the-server]__0s1p~il._.js:7282:15)
+    at PrismaPgAdapter.performIO (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\.next\dev\server\chunks\[root-of-the-server]__0s1p~il._.js:7277:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async PrismaPgAdapter.queryRaw (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\.next\dev\server\chunks\[root-of-the-server]__0s1p~il._.js:7213:34)
+    at async e.interpretNode (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\node_modules\@prisma\client\runtime\client.js:11:44621)
+    at async e.interpretNode (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\node_modules\@prisma\client\runtime\client.js:11:45065)
+    at async e.interpretNode (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\node_modules\@prisma\client\runtime\client.js:11:46285)
+    at async e.run (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\node_modules\@prisma\client\runtime\client.js:11:43335)
+    at async e.execute (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\node_modules\@prisma\client\runtime\client.js:57:815)
+    at async jt.request (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\node_modules\@prisma\client\runtime\client.js:58:2401)
+    at async Object.singleLoader (C:\Users\faadi\OneDrive\Desktop\ATS\resumeforge\node_modules\@prisma\client\runtime\client.js:65:6569)

@@ -6,11 +6,11 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   LayoutDashboard, FileSearch, Sparkles, Target,
-  History, ShieldCheck, LogOut, ChevronRight, Menu, X,
+  History, ShieldCheck, LogOut, ChevronRight, Menu, X, User
 } from "lucide-react";
 
 type Props = {
-  user: { name: string; email: string; role: string };
+  user: { name: string; email: string; role: string; image?: string };
 };
 
 const navItems = [
@@ -19,11 +19,12 @@ const navItems = [
   { href: "/dashboard/optimize",   label: "Optimize Resume",icon: Sparkles },
   { href: "/dashboard/tailor",     label: "Tailor for Job", icon: Target },
   { href: "/dashboard/history",    label: "History",        icon: History },
+  { href: "/dashboard/profile",    label: "Profile",        icon: User },
 ];
 
 export function DashboardSidebar({ user }: Props) {
   const pathname  = usePathname();
-  const isAdmin   = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+  const isAdmin   = user.email === "resumeforgeweb@gmail.com";
   const [open, setOpen] = useState(false);
 
   const isActive = (href: string, exact?: boolean) =>
@@ -83,9 +84,13 @@ export function DashboardSidebar({ user }: Props) {
   const UserFooter = () => (
     <div className="p-3 border-t border-border/30">
       <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/30">
-        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-          {initials}
-        </div>
+        {user.image ? (
+          <img src={user.image} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-primary/30 shrink-0" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+            {initials}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{user.name}</p>
           <p className="text-xs text-muted-foreground truncate">{user.email}</p>
@@ -130,7 +135,7 @@ export function DashboardSidebar({ user }: Props) {
 
       {/* ── Mobile drawer ──────────────────────────────────────────────── */}
       <aside
-        className={`md:hidden fixed top-0 left-0 z-50 h-screen w-72 flex flex-col bg-sidebar/95 backdrop-blur-xl border-r border-border/30 transition-transform duration-300 ${
+        className={`md:hidden fixed top-0 left-0 z-50 h-[100dvh] w-72 flex flex-col bg-sidebar/95 backdrop-blur-xl border-r border-border/30 transition-transform duration-300 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

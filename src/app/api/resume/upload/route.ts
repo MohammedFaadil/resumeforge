@@ -41,6 +41,14 @@ export async function POST(req: Request) {
     // 2. Extract text
     const extractedText = await extractTextFromPdf(buffer);
 
+    if (!extractedText || extractedText.trim().length < 50) {
+      // Remove the invalid file from storage to avoid clutter
+      await supabase.storage.from('resumes').remove([fileName]);
+      return NextResponse.json({ 
+        error: 'Invalid resume format. We could not detect proper text. Please upload a correct format resume (text-based PDF, not a scanned image).' 
+      }, { status: 400 });
+    }
+
     // 3. Save to database
     const resume = await prisma.resume.create({
       data: {
