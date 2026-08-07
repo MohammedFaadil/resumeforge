@@ -24,57 +24,62 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing credentials");
         }
 
-        // Special dynamic seeding for admin@gmail.com / admin
-        if (credentials.email === "admin@gmail.com" && credentials.password === "admin") {
-          const existingAdmin = await prisma.user.findUnique({
-            where: { email: "admin@gmail.com" },
-          });
-
-          if (!existingAdmin) {
-            const passwordHash = await bcrypt.hash("admin", 10);
-            await prisma.user.create({
-              data: {
-                name: "Admin",
-                email: "admin@gmail.com",
-                passwordHash,
-                role: "SUPER_ADMIN",
-                status: "APPROVED",
-                provider: "credentials",
-              },
+        try {
+          // Special dynamic seeding for admin@gmail.com / admin
+          if (credentials.email === "admin@gmail.com" && credentials.password === "admin") {
+            const existingAdmin = await prisma.user.findUnique({
+              where: { email: "admin@gmail.com" },
             });
-          } else {
-            const isPasswordValid = existingAdmin.passwordHash ? await bcrypt.compare("admin", existingAdmin.passwordHash) : false;
-            if (!isPasswordValid || existingAdmin.role !== "SUPER_ADMIN" || existingAdmin.status !== "APPROVED") {
+
+            if (!existingAdmin) {
               const passwordHash = await bcrypt.hash("admin", 10);
-              await prisma.user.update({
-                where: { email: "admin@gmail.com" },
+              await prisma.user.create({
                 data: {
+                  name: "Admin",
+                  email: "admin@gmail.com",
                   passwordHash,
                   role: "SUPER_ADMIN",
                   status: "APPROVED",
+                  provider: "credentials",
                 },
               });
+            } else {
+              const isPasswordValid = existingAdmin.passwordHash ? await bcrypt.compare("admin", existingAdmin.passwordHash) : false;
+              if (!isPasswordValid || existingAdmin.role !== "SUPER_ADMIN" || existingAdmin.status !== "APPROVED") {
+                const passwordHash = await bcrypt.hash("admin", 10);
+                await prisma.user.update({
+                  where: { email: "admin@gmail.com" },
+                  data: {
+                    passwordHash,
+                    role: "SUPER_ADMIN",
+                    status: "APPROVED",
+                  },
+                });
+              }
             }
           }
+
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+          });
+
+          if (!user || !user.passwordHash) throw new Error("Invalid credentials");
+
+          const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+          if (!isValid) throw new Error("Invalid credentials");
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role,
+            status: user.status,
+          };
+        } catch (err: any) {
+          console.error("Credentials authorize error:", err);
+          throw err;
         }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
-
-        if (!user || !user.passwordHash) throw new Error("Invalid credentials");
-
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!isValid) throw new Error("Invalid credentials");
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role,
-          status: user.status,
-        };
       },
     }),
   ],
