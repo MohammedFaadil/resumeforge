@@ -16,8 +16,8 @@ async function main() {
   const adapter = new PrismaPg(pool);
   const prisma = new PrismaClient({ adapter });
 
-  const email = 'resumeforgeweb@gmail.com';
-  const password = 'AdminPassword123!';
+  const email = 'admin@gmail.com';
+  const password = 'admin';
   const passwordHash = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.upsert({

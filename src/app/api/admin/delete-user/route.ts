@@ -6,7 +6,8 @@ import prisma from "@/lib/prisma";
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.email !== 'resumeforgeweb@gmail.com') {
+    const isAdmin = session?.user && (session.user.role === 'SUPER_ADMIN' || session.user.role === 'ADMIN' || session.user.email === 'resumeforgeweb@gmail.com' || session.user.email === 'admin@gmail.com');
+    if (!session || !isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -22,8 +23,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Don't delete the admin themselves
-    if (user.email === 'resumeforgeweb@gmail.com') {
+    // Don't delete the admin themselves or other super admins
+    if (user.email === 'resumeforgeweb@gmail.com' || user.email === 'admin@gmail.com' || user.role === 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Cannot delete the primary admin account' }, { status: 403 });
     }
 

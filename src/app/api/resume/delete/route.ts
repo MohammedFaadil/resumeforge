@@ -15,7 +15,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'resumeId is required' }, { status: 400 });
     }
 
-    const isAdmin = session.user.email === 'resumeforgeweb@gmail.com';
+    const isAdmin = session.user.role === 'SUPER_ADMIN' || session.user.role === 'ADMIN' || session.user.email === 'resumeforgeweb@gmail.com' || session.user.email === 'admin@gmail.com';
 
     const resume = await prisma.resume.findUnique({
       where: { id: resumeId },

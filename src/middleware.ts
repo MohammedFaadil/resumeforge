@@ -24,7 +24,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Non-admin trying to access /admin
-  if (token && isAdminRoute && token.email !== 'resumeforgeweb@gmail.com') {
+  const isAdmin = token && (token.role === 'SUPER_ADMIN' || token.role === 'ADMIN' || token.email === 'resumeforgeweb@gmail.com' || token.email === 'admin@gmail.com');
+  if (token && isAdminRoute && !isAdmin) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

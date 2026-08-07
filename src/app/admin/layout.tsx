@@ -5,7 +5,8 @@ import { AdminLayoutClient } from "@/components/admin/AdminLayoutClient";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
 
-  if (!session || session.user.email !== "resumeforgeweb@gmail.com") {
+  const isAdmin = session?.user && (session.user.role === "SUPER_ADMIN" || session.user.role === "ADMIN" || session.user.email === "resumeforgeweb@gmail.com" || session.user.email === "admin@gmail.com");
+  if (!session || !isAdmin) {
     redirect("/dashboard");
   }
 

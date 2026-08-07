@@ -6,10 +6,10 @@ const fallbackKey1 = process.env.GROQ_API_KEY_1;
 const fallbackKey2 = process.env.GROQ_API_KEY_2;
 
 if (!primaryKey && !fallbackKey1 && !fallbackKey2) {
-  throw new Error("No Groq API key found. Set GROQ_API_KEY, GROQ_API_KEY_1, or GROQ_API_KEY_2 in .env.local");
+  console.warn("No Groq API key found. Set GROQ_API_KEY, GROQ_API_KEY_1, or GROQ_API_KEY_2 in environment.");
 }
 
-const client1 = primaryKey   ? new Groq({ apiKey: primaryKey })   : null;
+const client1 = primaryKey   ? new Groq({ apiKey: primaryKey })   : new Groq({ apiKey: 'placeholder-key' });
 const client2 = fallbackKey1 ? new Groq({ apiKey: fallbackKey1 }) : null;
 const client3 = fallbackKey2 ? new Groq({ apiKey: fallbackKey2 }) : null;
 

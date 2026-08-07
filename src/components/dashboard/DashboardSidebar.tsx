@@ -24,7 +24,7 @@ const navItems = [
 
 export function DashboardSidebar({ user }: Props) {
   const pathname  = usePathname();
-  const isAdmin   = user.email === "resumeforgeweb@gmail.com";
+  const isAdmin   = user.role === "SUPER_ADMIN" || user.role === "ADMIN" || user.email === "resumeforgeweb@gmail.com" || user.email === "admin@gmail.com";
   const [open, setOpen] = useState(false);
 
   const isActive = (href: string, exact?: boolean) =>
